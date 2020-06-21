@@ -1,8 +1,9 @@
 import React, { PureComponent } from "react";
+import { withRouter } from "react-router-dom";
 import { connect } from "react-redux";
+import { compose } from "@reduxjs/toolkit";
 import uuid from "react-uuid";
-import { getGameStateSelectors } from "../store/gameReducer";
-import { setGameCode } from "../store/gameActionCreator";
+import { setGameCode, setDeckName } from "../store/gameActionCreator";
 import { returnMongoCollection } from "../utils/databaseManagement";
 
 class HostWelcome extends PureComponent {
@@ -26,15 +27,17 @@ class HostWelcome extends PureComponent {
   }
 
   generateCode = () => {
+    const { setGameCode, setDeckName, history } = this.props;
     const code = uuid().slice(0, 4).toUpperCase();
-    this.props.setGameCode(code);
+    setGameCode(code);
+    //setDeckName(!!!!!!)
+    history.push("/waiting-room");
   };
 
   render() {
     return (
       <div>
         <h1>Host Welcome Page!</h1>
-        {this.props.gameCode && <h3>{`Game Code: ${this.props.gameCode}`}</h3>}
         <h2>Select a deck to play with</h2>
         <div>
           {this.state.decks.map((deck) => (
@@ -48,16 +51,11 @@ class HostWelcome extends PureComponent {
   }
 }
 
-const mapStateToProps = (state) => {
-  const { getGameCode } = getGameStateSelectors(state);
-
-  return {
-    gameCode: getGameCode(),
-  };
-};
-
 const mapDispatchToProps = {
   setGameCode,
+  setDeckName,
 };
 
-export default connect(mapStateToProps, mapDispatchToProps)(HostWelcome);
+const reduxConnectFn = connect(null, mapDispatchToProps);
+
+export default compose(reduxConnectFn, withRouter)(HostWelcome);

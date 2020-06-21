@@ -4,6 +4,7 @@ import "./App.css";
 import HomePage from "./screens/HomePage";
 import HostWelcome from "./screens/HostWelcome";
 import PlayerWelcome from "./screens/PlayerWelcome";
+import WaitingRoom from "./screens/WaitingRoom";
 
 function App() {
   return (
@@ -17,6 +18,9 @@ function App() {
         </Route>
         <Route exact path="/player-welcome">
           <PlayerWelcome />
+        </Route>
+        <Route exact path="/waiting-room">
+          <WaitingRoom />
         </Route>
       </Switch>
     </div>
