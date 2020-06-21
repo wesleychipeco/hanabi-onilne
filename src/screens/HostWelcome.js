@@ -3,8 +3,28 @@ import { connect } from "react-redux";
 import uuid from "react-uuid";
 import { getGameStateSelectors } from "../store/gameReducer";
 import { setGameCode } from "../store/gameActionCreator";
+import { returnMongoCollection } from "../utils/databaseManagement";
 
 class HostWelcome extends PureComponent {
+  constructor(props) {
+    super(props);
+
+    this.state = {
+      decks: [],
+    };
+  }
+
+  componentDidMount() {
+    const decksCollection = returnMongoCollection("decks");
+    decksCollection
+      .find({})
+      .asArray()
+      .then((docs) => {
+        console.log("DOCS", docs);
+        this.setState({ decks: docs });
+      });
+  }
+
   generateCode = () => {
     const code = uuid().slice(0, 4).toUpperCase();
     this.props.setGameCode(code);
@@ -14,9 +34,14 @@ class HostWelcome extends PureComponent {
     return (
       <div>
         <h1>Host Welcome Page!</h1>
-        <h3>{this.props.gameCode}</h3>
+        {this.props.gameCode && <h3>{`Game Code: ${this.props.gameCode}`}</h3>}
+        <h2>Select a deck to play with</h2>
         <div>
-          <button onClick={this.generateCode}>Generate code</button>
+          {this.state.decks.map((deck) => (
+            <button key={deck.deckName} onClick={this.generateCode}>
+              {deck.deckName}
+            </button>
+          ))}
         </div>
       </div>
     );
