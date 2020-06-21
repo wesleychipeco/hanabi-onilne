@@ -1,0 +1,3 @@
+export const SET_GAME_CODE = "SET_GAME_CODE";
+export const SET_PLAYER_NAME = "SET_PLAYER_NAME";
+export const SET_PLAYER_NUMBER = "SET_PLAYER_NUMBER";
