@@ -21,14 +21,16 @@ class HostWelcome extends PureComponent {
 
     this.state = {
       decks: [],
-      modalVisible: false,
+      isModalVisible: false,
       name: "",
     };
+    this.decksCollection = returnMongoCollection("decks");
+    this.gamesCollection = returnMongoCollection("games");
   }
 
   componentDidMount() {
-    const decksCollection = returnMongoCollection("decks");
-    decksCollection
+    // On mount, populate decks from mongodb
+    this.decksCollection
       .find({})
       .asArray()
       .then((docs) => {
@@ -37,29 +39,34 @@ class HostWelcome extends PureComponent {
   }
 
   selectDeck = (deckName) => {
+    // Set deck in mongo and show modal
     this.props.setDeckName(deckName);
-    this.setState({ modalVisible: true });
+    this.setState({ isModalVisible: true });
   };
 
   generateUniqueGameCode = async () => {
-    const gamesCollection = returnMongoCollection("games");
-
+    // While loop to create a non-existing, unique game code
     let counter = 0;
     while (true) {
       counter += 1;
       const gameCode = uuid().slice(0, 4).toUpperCase();
 
-      const duplicateGameCodes = await findMongo(gamesCollection, { gameCode });
+      const duplicateGameCodes = await findMongo(this.gamesCollection, {
+        gameCode,
+      });
+
+      // If no duplicate game codes, set and return
       if (duplicateGameCodes.length === 0) {
         this.props.setGameCode(gameCode);
         return gameCode;
       }
 
+      // If cannot generate unique game code in 10 attempts, stop
       if (counter > 10) {
         console.log(
           "Duplicate game codes after 10 attempts. Stopping infinite loop"
         );
-        return "0000";
+        return undefined;
       }
     }
   };
@@ -71,6 +78,12 @@ class HostWelcome extends PureComponent {
 
     setHostName(name);
     const gameCode = await this.generateUniqueGameCode();
+    // If error out, stop
+    if (!gameCode) {
+      return;
+    }
+
+    // Add base new game object
     const newGameObject = {
       hostName: name,
       deckName,
@@ -78,8 +91,9 @@ class HostWelcome extends PureComponent {
       playerNames: [],
       isGameStarted: false,
     };
-    const gamesCollection = returnMongoCollection("games");
-    deleteInsertMongo(gamesCollection, newGameObject, { gameCode });
+    deleteInsertMongo(this.gamesCollection, newGameObject, { gameCode });
+
+    // navigate to Waiting Room
     history.push("/waiting-room");
   };
 
@@ -88,7 +102,7 @@ class HostWelcome extends PureComponent {
   };
 
   shouldRenderModal = () => {
-    if (this.state.modalVisible) {
+    if (this.state.isModalVisible) {
       return (
         <div
           style={{
