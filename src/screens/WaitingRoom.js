@@ -3,11 +3,7 @@ import { withRouter } from "react-router-dom";
 import { connect } from "react-redux";
 import { compose } from "@reduxjs/toolkit";
 import { getGameStateSelectors } from "../store/gameReducer";
-import {
-  returnMongoCollection,
-  deleteInsertMongo,
-  findMongo,
-} from "../utils/databaseManagement";
+import { returnMongoCollection, findMongo } from "../utils/databaseManagement";
 
 class WaitingRoom extends PureComponent {
   constructor(props) {
@@ -25,17 +21,18 @@ class WaitingRoom extends PureComponent {
     const { gameCode } = this.props;
     const gamesCollection = returnMongoCollection("games");
 
-    console.log("game code", gameCode);
     const gameObjectArray = await findMongo(gamesCollection, { gameCode });
     if (gameObjectArray.length === 1) {
       const gameObject = gameObjectArray[0];
       const { deckName, hostName, playerNames } = gameObject;
-      console.log("GAME OBJECT", gameObjectArray);
       this.setState({
         deckName,
         hostName,
         playerNames,
       });
+    } else {
+      console.log("No waiting room exists, re-route to Home");
+      this.props.history.push("/");
     }
   }
 

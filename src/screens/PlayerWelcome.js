@@ -31,7 +31,7 @@ class PlayerWelcome extends PureComponent {
     if (isExistingOpenGame.length === 0) {
       alert("Game code does not exist. Please try entering game code again.");
     } else if (isExistingOpenGame[0].isGameStarted) {
-      alert("Game is already in progress. Sorry!");
+      alert("Game is already in progress. Please join another game. Sorry!");
     } else if (isExistingOpenGame[0].playerNames.length >= 4) {
       alert("Game is already full of players. Max 5 players.");
     } else {
