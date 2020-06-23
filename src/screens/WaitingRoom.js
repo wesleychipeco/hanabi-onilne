@@ -36,6 +36,28 @@ class WaitingRoom extends PureComponent {
     }
   }
 
+  renderHostOnlyStartGameButton = () => {
+    const isButtonDisabled = this.state.playerNames.length === 0;
+    if (this.props.playerName === this.state.hostName) {
+      return (
+        <button
+          disabled={isButtonDisabled}
+          onClick={this.startGame}
+          style={{
+            width: 150,
+            height: 75,
+            backgroundColor: isButtonDisabled
+              ? "rgb(192,192,192)"
+              : "rgb(50,205,50)",
+          }}
+        >
+          Start Game!
+        </button>
+      );
+    }
+    return <h4>Wait for the host to start the game</h4>;
+  };
+
   startGame = () => {
     console.log("START GAME!!!!!!!!!!");
   };
@@ -45,7 +67,6 @@ class WaitingRoom extends PureComponent {
     const { gameCode, playerName } = this.props;
     const meHostText = this.props.playerName === hostName ? " - ME" : "";
 
-    const isButtonDisabled = playerNames.length === 0;
     return (
       <div>
         <h1>Waiting Room!</h1>
@@ -59,19 +80,7 @@ class WaitingRoom extends PureComponent {
             <h5 key={playerNameMap}>{`${playerNameMap}${mePlayerText}`}</h5>
           );
         })}
-        <button
-          disabled={isButtonDisabled}
-          onClick={this.startGame}
-          style={{
-            width: 150,
-            height: 75,
-            backgroundColor: isButtonDisabled
-              ? "rgb(192,192,192)"
-              : "rgb(50,205,50)",
-          }}
-        >
-          Everybody's In
-        </button>
+        {this.renderHostOnlyStartGameButton()}
       </div>
     );
   }
