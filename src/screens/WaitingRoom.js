@@ -1,8 +1,17 @@
 import React, { PureComponent } from "react";
+import { withRouter } from "react-router-dom";
 import { connect } from "react-redux";
+import { compose } from "@reduxjs/toolkit";
 import { getGameStateSelectors } from "../store/gameReducer";
 
 class WaitingRoom extends PureComponent {
+  componentDidMount() {
+    const { deckName, gameCode, hostName, history } = this.props;
+    if (!deckName && !gameCode && !hostName) {
+      history.push("/");
+    }
+  }
+
   render() {
     return (
       <div>
@@ -28,4 +37,6 @@ const mapStateToProps = (state) => {
   };
 };
 
-export default connect(mapStateToProps)(WaitingRoom);
+const reduxConnectFn = connect(mapStateToProps);
+
+export default compose(reduxConnectFn, withRouter)(WaitingRoom);
