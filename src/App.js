@@ -5,39 +5,24 @@ import HomePage from "./screens/HomePage";
 import HostWelcome from "./screens/HostWelcome";
 import PlayerWelcome from "./screens/PlayerWelcome";
 import WaitingRoom from "./screens/WaitingRoom";
+import withScreenSize from "./screens/withScreenSize";
 
 class App extends Component {
-  constructor(props) {
-    super(props);
-
-    this.state = {
-      height: window.innerHeight,
-      width: window.innerWidth,
-    };
-  }
-
   render() {
     return (
-      <div
-        className="App"
-        style={{
-          width: this.state.width,
-          height: this.state.height,
-          flex: 1,
-        }}
-      >
+      <div className="App">
         <Switch>
           <Route exact path="/">
-            <HomePage />
+            <HomePage {...this.props} />
           </Route>
           <Route exact path="/host-welcome">
-            <HostWelcome />
+            <HostWelcome {...this.props} />
           </Route>
           <Route exact path="/player-welcome">
-            <PlayerWelcome />
+            <PlayerWelcome {...this.props} />
           </Route>
           <Route exact path="/waiting-room">
-            <WaitingRoom />
+            <WaitingRoom {...this.props} />
           </Route>
         </Switch>
       </div>
@@ -45,4 +30,4 @@ class App extends Component {
   }
 }
 
-export default App;
+export default withScreenSize(App);
