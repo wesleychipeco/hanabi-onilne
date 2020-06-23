@@ -20,6 +20,7 @@ class WaitingRoom extends PureComponent {
     const { gameCode } = this.props;
     const gamesCollection = returnMongoCollection("games");
 
+    // Put values from Mongo into state
     const gameObjectArray = await findMongo(gamesCollection, { gameCode });
     if (gameObjectArray.length === 1) {
       const gameObject = gameObjectArray[0];
@@ -35,11 +36,16 @@ class WaitingRoom extends PureComponent {
     }
   }
 
+  startGame = () => {
+    console.log("START GAME!!!!!!!!!!");
+  };
+
   render() {
     const { deckName, hostName, playerNames } = this.state;
     const { gameCode, playerName } = this.props;
     const meHostText = this.props.playerName === hostName ? " - ME" : "";
 
+    const isButtonDisabled = playerNames.length === 0;
     return (
       <div>
         <h1>Waiting Room!</h1>
@@ -49,8 +55,23 @@ class WaitingRoom extends PureComponent {
         <h5>{`${hostName} - Host${meHostText}`}</h5>
         {playerNames.map((playerNameMap) => {
           const mePlayerText = playerNameMap === playerName ? " - ME" : "";
-          return <h5 key={playerName}>{`${playerName}${mePlayerText}`}</h5>;
+          return (
+            <h5 key={playerNameMap}>{`${playerNameMap}${mePlayerText}`}</h5>
+          );
         })}
+        <button
+          disabled={isButtonDisabled}
+          onClick={this.startGame}
+          style={{
+            width: 150,
+            height: 75,
+            backgroundColor: isButtonDisabled
+              ? "rgb(192,192,192)"
+              : "rgb(50,205,50)",
+          }}
+        >
+          Everybody's In
+        </button>
       </div>
     );
   }
