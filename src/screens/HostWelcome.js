@@ -8,7 +8,12 @@ import {
   setDeckName,
   setHostName,
 } from "../store/gameActionCreator";
-import { returnMongoCollection } from "../utils/databaseManagement";
+import { getGameStateSelectors } from "../store/gameReducer";
+import {
+  returnMongoCollection,
+  deleteInsertMongo,
+  findMongo,
+} from "../utils/databaseManagement";
 
 class HostWelcome extends PureComponent {
   constructor(props) {
@@ -31,22 +36,54 @@ class HostWelcome extends PureComponent {
       });
   }
 
-  generateCode = (deckName) => {
-    const { setGameCode, setDeckName } = this.props;
-    const code = uuid().slice(0, 4).toUpperCase();
-    setGameCode(code);
-    setDeckName(deckName);
+  selectDeck = (deckName) => {
+    this.props.setDeckName(deckName);
     this.setState({ modalVisible: true });
   };
 
-  handleSubmit = (event) => {
-    const { setHostName, history } = this.props;
+  generateUniqueGameCode = async () => {
+    const gamesCollection = returnMongoCollection("games");
+
+    let counter = 0;
+    while (true) {
+      counter += 1;
+      const gameCode = uuid().slice(0, 4).toUpperCase();
+
+      const duplicateGameCodes = await findMongo(gamesCollection, { gameCode });
+      if (duplicateGameCodes.length === 0) {
+        this.props.setGameCode(gameCode);
+        return gameCode;
+      }
+
+      if (counter > 10) {
+        console.log(
+          "Duplicate game codes after 10 attempts. Stopping infinite loop"
+        );
+        return "0000";
+      }
+    }
+  };
+
+  handleSubmit = async (event) => {
+    const { setHostName, history, deckName } = this.props;
+    const { name } = this.state;
     event.preventDefault();
-    setHostName(this.state.name);
+
+    setHostName(name);
+    const gameCode = await this.generateUniqueGameCode();
+    const newGameObject = {
+      hostName: name,
+      deckName,
+      gameCode,
+      playerNames: [],
+      isGameStarted: false,
+    };
+    const gamesCollection = returnMongoCollection("games");
+    deleteInsertMongo(gamesCollection, newGameObject, { gameCode });
     history.push("/waiting-room");
   };
 
-  handleChange = (event) => {
+  handleTextInputChange = (event) => {
     this.setState({ name: event.target.value });
   };
 
@@ -70,7 +107,7 @@ class HostWelcome extends PureComponent {
                 <input
                   type="text"
                   name="hostName"
-                  onChange={this.handleChange}
+                  onChange={this.handleTextInputChange}
                 />
               </label>
               <input type="submit" value="Enter" />
@@ -92,7 +129,7 @@ class HostWelcome extends PureComponent {
           {this.state.decks.map((deck) => (
             <button
               key={deck.deckName}
-              onClick={() => this.generateCode(deck.deckName)}
+              onClick={() => this.selectDeck(deck.deckName)}
             >
               {deck.deckName}
             </button>
@@ -104,12 +141,20 @@ class HostWelcome extends PureComponent {
   }
 }
 
+const mapStateToProps = (state) => {
+  const { getDeckName } = getGameStateSelectors(state);
+
+  return {
+    deckName: getDeckName(),
+  };
+};
+
 const mapDispatchToProps = {
   setGameCode,
   setDeckName,
   setHostName,
 };
 
-const reduxConnectFn = connect(null, mapDispatchToProps);
+const reduxConnectFn = connect(mapStateToProps, mapDispatchToProps);
 
 export default compose(reduxConnectFn, withRouter)(HostWelcome);
