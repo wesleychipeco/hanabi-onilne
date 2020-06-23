@@ -3,37 +3,64 @@ import { withRouter } from "react-router-dom";
 import { connect } from "react-redux";
 import { compose } from "@reduxjs/toolkit";
 import { getGameStateSelectors } from "../store/gameReducer";
+import {
+  returnMongoCollection,
+  deleteInsertMongo,
+  findMongo,
+} from "../utils/databaseManagement";
 
 class WaitingRoom extends PureComponent {
-  componentDidMount() {
-    const { deckName, gameCode, hostName, history } = this.props;
-    if (!deckName && !gameCode && !hostName) {
-      history.push("/");
+  constructor(props) {
+    super(props);
+
+    this.state = {
+      deckName: "",
+      gameCode: "",
+      hostName: "",
+      playerNames: [],
+    };
+  }
+
+  async componentDidMount() {
+    const { gameCode } = this.props;
+    const gamesCollection = returnMongoCollection("games");
+
+    console.log("game code", gameCode);
+    const gameObjectArray = await findMongo(gamesCollection, { gameCode });
+    if (gameObjectArray.length === 1) {
+      const gameObject = gameObjectArray[0];
+      const { deckName, hostName, playerNames } = gameObject;
+      console.log("GAME OBJECT", gameObjectArray);
+      this.setState({
+        deckName,
+        hostName,
+        playerNames,
+      });
     }
   }
 
   render() {
+    const { deckName, gameCode, hostName, playerNames } = this.state;
     return (
       <div>
         <h1>Waiting Room!</h1>
-        <h3>{`Playing with deck: ${this.props.deckName}`}</h3>
-        {this.props.gameCode && <h3>{`Game Code: ${this.props.gameCode}`}</h3>}
+        <h3>{`Playing with deck: ${deckName}`}</h3>
+        {gameCode && <h3>{`Game Code: ${gameCode}`}</h3>}
         <h3>List of Players:</h3>
-        <h4>Host: {this.props.hostName}</h4>
+        <h5>{`${hostName} - Host`}</h5>
+        {playerNames.map((playerName) => (
+          <h5 key={playerName}>{playerName}</h5>
+        ))}
       </div>
     );
   }
 }
 
 const mapStateToProps = (state) => {
-  const { getGameCode, getDeckName, getHostName } = getGameStateSelectors(
-    state
-  );
+  const { getGameCode } = getGameStateSelectors(state);
 
   return {
     gameCode: getGameCode(),
-    deckName: getDeckName(),
-    hostName: getHostName(),
   };
 };
 

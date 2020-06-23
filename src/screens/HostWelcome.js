@@ -91,10 +91,18 @@ class HostWelcome extends PureComponent {
       playerNames: [],
       isGameStarted: false,
     };
-    deleteInsertMongo(this.gamesCollection, newGameObject, { gameCode });
+    const insertComplete = await deleteInsertMongo(
+      this.gamesCollection,
+      newGameObject,
+      { gameCode }
+    );
 
-    // navigate to Waiting Room
-    history.push("/waiting-room");
+    if (insertComplete) {
+      // navigate to Waiting Room
+      history.push("/waiting-room");
+    } else {
+      alert("Error creating game.");
+    }
   };
 
   handleTextInputChange = (event) => {
