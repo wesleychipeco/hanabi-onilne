@@ -8,7 +8,12 @@ import {
   setDeckName,
   setHostName,
 } from "../store/gameActionCreator";
-import { returnMongoCollection } from "../utils/databaseManagement";
+import { getGameStateSelectors } from "../store/gameReducer";
+import {
+  returnMongoCollection,
+  deleteInsertMongo,
+  findMongo,
+} from "../utils/databaseManagement";
 
 class HostWelcome extends PureComponent {
   constructor(props) {
@@ -16,14 +21,16 @@ class HostWelcome extends PureComponent {
 
     this.state = {
       decks: [],
-      modalVisible: false,
+      isModalVisible: false,
       name: "",
     };
+    this.decksCollection = returnMongoCollection("decks");
+    this.gamesCollection = returnMongoCollection("games");
   }
 
   componentDidMount() {
-    const decksCollection = returnMongoCollection("decks");
-    decksCollection
+    // On mount, populate decks from mongodb
+    this.decksCollection
       .find({})
       .asArray()
       .then((docs) => {
@@ -31,27 +38,71 @@ class HostWelcome extends PureComponent {
       });
   }
 
-  generateCode = (deckName) => {
-    const { setGameCode, setDeckName } = this.props;
-    const code = uuid().slice(0, 4).toUpperCase();
-    setGameCode(code);
-    setDeckName(deckName);
-    this.setState({ modalVisible: true });
+  selectDeck = (deckName) => {
+    // Set deck in mongo and show modal
+    this.props.setDeckName(deckName);
+    this.setState({ isModalVisible: true });
   };
 
-  handleSubmit = (event) => {
-    const { setHostName, history } = this.props;
+  generateUniqueGameCode = async () => {
+    // While loop to create a non-existing, unique game code
+    let counter = 0;
+    while (true) {
+      counter += 1;
+      const gameCode = uuid().slice(0, 4).toUpperCase();
+
+      const duplicateGameCodes = await findMongo(this.gamesCollection, {
+        gameCode,
+      });
+
+      // If no duplicate game codes, set and return
+      if (duplicateGameCodes.length === 0) {
+        this.props.setGameCode(gameCode);
+        return gameCode;
+      }
+
+      // If cannot generate unique game code in 10 attempts, stop
+      if (counter > 10) {
+        console.log(
+          "Duplicate game codes after 10 attempts. Stopping infinite loop"
+        );
+        return undefined;
+      }
+    }
+  };
+
+  handleSubmit = async (event) => {
+    const { setHostName, history, deckName } = this.props;
+    const { name } = this.state;
     event.preventDefault();
-    setHostName(this.state.name);
+
+    setHostName(name);
+    const gameCode = await this.generateUniqueGameCode();
+    // If error out, stop
+    if (!gameCode) {
+      return;
+    }
+
+    // Add base new game object
+    const newGameObject = {
+      hostName: name,
+      deckName,
+      gameCode,
+      playerNames: [],
+      isGameStarted: false,
+    };
+    deleteInsertMongo(this.gamesCollection, newGameObject, { gameCode });
+
+    // navigate to Waiting Room
     history.push("/waiting-room");
   };
 
-  handleChange = (event) => {
+  handleTextInputChange = (event) => {
     this.setState({ name: event.target.value });
   };
 
   shouldRenderModal = () => {
-    if (this.state.modalVisible) {
+    if (this.state.isModalVisible) {
       return (
         <div
           style={{
@@ -70,7 +121,7 @@ class HostWelcome extends PureComponent {
                 <input
                   type="text"
                   name="hostName"
-                  onChange={this.handleChange}
+                  onChange={this.handleTextInputChange}
                 />
               </label>
               <input type="submit" value="Enter" />
@@ -92,7 +143,7 @@ class HostWelcome extends PureComponent {
           {this.state.decks.map((deck) => (
             <button
               key={deck.deckName}
-              onClick={() => this.generateCode(deck.deckName)}
+              onClick={() => this.selectDeck(deck.deckName)}
             >
               {deck.deckName}
             </button>
@@ -104,12 +155,20 @@ class HostWelcome extends PureComponent {
   }
 }
 
+const mapStateToProps = (state) => {
+  const { getDeckName } = getGameStateSelectors(state);
+
+  return {
+    deckName: getDeckName(),
+  };
+};
+
 const mapDispatchToProps = {
   setGameCode,
   setDeckName,
   setHostName,
 };
 
-const reduxConnectFn = connect(null, mapDispatchToProps);
+const reduxConnectFn = connect(mapStateToProps, mapDispatchToProps);
 
 export default compose(reduxConnectFn, withRouter)(HostWelcome);
