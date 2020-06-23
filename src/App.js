@@ -13,16 +13,16 @@ class App extends Component {
       <div className="App">
         <Switch>
           <Route exact path="/">
-            <HomePage />
+            <HomePage {...this.props} />
           </Route>
           <Route exact path="/host-welcome">
-            <HostWelcome />
+            <HostWelcome {...this.props} />
           </Route>
           <Route exact path="/player-welcome">
-            <PlayerWelcome />
+            <PlayerWelcome {...this.props} />
           </Route>
           <Route exact path="/waiting-room">
-            <WaitingRoom />
+            <WaitingRoom {...this.props} />
           </Route>
         </Switch>
       </div>

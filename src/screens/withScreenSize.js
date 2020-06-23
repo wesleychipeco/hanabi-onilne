@@ -21,7 +21,11 @@ export default function withWindowDimensions(WrappedComponent) {
       const { width, height } = this.state;
       return (
         <div style={{ width, height, flex: 1 }}>
-          <WrappedComponent {...this.props} />
+          <WrappedComponent
+            {...this.props}
+            windowWidth={width}
+            windowHeight={height}
+          />
         </div>
       );
     }

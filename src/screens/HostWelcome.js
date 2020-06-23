@@ -21,7 +21,7 @@ class HostWelcome extends PureComponent {
 
     this.state = {
       decks: [],
-      isModalVisible: false,
+      isDeckSelected: false,
       name: "",
     };
     this.decksCollection = returnMongoCollection("decks");
@@ -41,7 +41,7 @@ class HostWelcome extends PureComponent {
   selectDeck = (deckName) => {
     // Set deck in mongo and show modal
     this.props.setDeckName(deckName);
-    this.setState({ isModalVisible: true });
+    this.setState({ isDeckSelected: true });
   };
 
   generateUniqueGameCode = async () => {
@@ -109,55 +109,53 @@ class HostWelcome extends PureComponent {
     this.setState({ name: event.target.value });
   };
 
-  shouldRenderModal = () => {
-    if (this.state.isModalVisible) {
+  shouldRenderNameInput = () => {
+    if (this.state.isDeckSelected) {
       return (
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            backgroundColor: "rgb(128,128,128)",
-            width: "100%",
-            height: "100%",
-          }}
-        >
-          <div style={{ width: "50%", height: "50%", backgroundColor: "red" }}>
-            <form onSubmit={this.handleSubmit}>
-              <label>
-                Please enter your name:
-                <input
-                  type="text"
-                  name="hostName"
-                  onChange={this.handleTextInputChange}
-                />
-              </label>
-              <input type="submit" value="Enter" />
-            </form>
-          </div>
+        <div style={{ marginTop: 20 }}>
+          <h2>{`Deck Selected: ${this.props.deckName}`}</h2>
+          <form onSubmit={this.handleSubmit}>
+            <label>
+              Please enter your name:
+              <input
+                type="text"
+                name="hostName"
+                onChange={this.handleTextInputChange}
+              />
+            </label>
+            <input type="submit" value="Create Game" />
+          </form>
         </div>
       );
     }
-    return null;
+    return (
+      <div>
+        <h2>Select a deck to play with</h2>
+        {this.state.decks.map((deck) => (
+          <button
+            key={deck.deckName}
+            onClick={() => this.selectDeck(deck.deckName)}
+          >
+            {deck.deckName}
+          </button>
+        ))}
+      </div>
+    );
   };
 
   render() {
+    const { windowWidth, windowHeight } = this.props;
     return (
-      <div>
+      <div
+        style={{
+          width: windowWidth,
+          height: windowHeight,
+        }}
+      >
         <h1>Host Welcome Page!</h1>
         <Link to="/">Home Page</Link>
-        <h2>Select a deck to play with</h2>
-        <div>
-          {this.state.decks.map((deck) => (
-            <button
-              key={deck.deckName}
-              onClick={() => this.selectDeck(deck.deckName)}
-            >
-              {deck.deckName}
-            </button>
-          ))}
-        </div>
-        {this.shouldRenderModal()}
+
+        {this.shouldRenderNameInput()}
       </div>
     );
   }
