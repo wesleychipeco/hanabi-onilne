@@ -1,6 +1,8 @@
 import { getStateSlice } from "./reduxUtils";
 import {
   SET_GAME_CODE,
+  SET_DECK_NAME,
+  SET_HOST_NAME,
   SET_PLAYER_NAME,
   SET_PLAYER_NUMBER,
 } from "./gameActionTypes";
@@ -9,6 +11,8 @@ const GAME_STATE_PATH = "game";
 
 const initialState = {
   gameCode: "",
+  deckName: "",
+  hostName: "",
   playerName: "",
   playerNumber: undefined,
 };
@@ -21,6 +25,18 @@ const gameReducer = (state = initialState, action) => {
       return {
         ...state,
         gameCode: payload,
+      };
+
+    case SET_DECK_NAME:
+      return {
+        ...state,
+        deckName: payload,
+      };
+
+    case SET_HOST_NAME:
+      return {
+        ...state,
+        hostName: payload,
       };
 
     case SET_PLAYER_NAME:
@@ -45,6 +61,8 @@ const getGameStateSelectors = (rootState) => {
 
   return {
     getGameCode: () => state.gameCode,
+    getDeckName: () => state.deckName,
+    getHostName: () => state.hostName,
     getPlayerName: () => state.playerName,
     getPlayerNumber: () => state.playerNumber,
   };
