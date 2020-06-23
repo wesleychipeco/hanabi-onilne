@@ -6,7 +6,7 @@ import uuid from "react-uuid";
 import {
   setGameCode,
   setDeckName,
-  setHostName,
+  setPlayerName,
 } from "../store/gameActionCreator";
 import { getGameStateSelectors } from "../store/gameReducer";
 import {
@@ -72,11 +72,11 @@ class HostWelcome extends PureComponent {
   };
 
   handleSubmit = async (event) => {
-    const { setHostName, history, deckName } = this.props;
+    const { setPlayerName, history, deckName } = this.props;
     const { name } = this.state;
     event.preventDefault();
 
-    setHostName(name);
+    setPlayerName(name);
     const gameCode = await this.generateUniqueGameCode();
     // If error out, stop
     if (!gameCode) {
@@ -174,7 +174,7 @@ const mapStateToProps = (state) => {
 const mapDispatchToProps = {
   setGameCode,
   setDeckName,
-  setHostName,
+  setPlayerName,
 };
 
 const reduxConnectFn = connect(mapStateToProps, mapDispatchToProps);

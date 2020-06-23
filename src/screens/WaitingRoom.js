@@ -11,7 +11,6 @@ class WaitingRoom extends PureComponent {
 
     this.state = {
       deckName: "",
-      gameCode: "",
       hostName: "",
       playerNames: [],
     };
@@ -37,27 +36,32 @@ class WaitingRoom extends PureComponent {
   }
 
   render() {
-    const { deckName, gameCode, hostName, playerNames } = this.state;
+    const { deckName, hostName, playerNames } = this.state;
+    const { gameCode, playerName } = this.props;
+    const meHostText = this.props.playerName === hostName ? " - ME" : "";
+
     return (
       <div>
         <h1>Waiting Room!</h1>
         <h3>{`Playing with deck: ${deckName}`}</h3>
         {gameCode && <h3>{`Game Code: ${gameCode}`}</h3>}
         <h3>List of Players:</h3>
-        <h5>{`${hostName} - Host`}</h5>
-        {playerNames.map((playerName) => (
-          <h5 key={playerName}>{playerName}</h5>
-        ))}
+        <h5>{`${hostName} - Host${meHostText}`}</h5>
+        {playerNames.map((playerNameMap) => {
+          const mePlayerText = playerNameMap === playerName ? " - ME" : "";
+          return <h5 key={playerName}>{`${playerName}${mePlayerText}`}</h5>;
+        })}
       </div>
     );
   }
 }
 
 const mapStateToProps = (state) => {
-  const { getGameCode } = getGameStateSelectors(state);
+  const { getGameCode, getPlayerName } = getGameStateSelectors(state);
 
   return {
     gameCode: getGameCode(),
+    playerName: getPlayerName(),
   };
 };
 

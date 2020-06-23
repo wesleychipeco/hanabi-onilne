@@ -2,7 +2,7 @@ import React, { PureComponent } from "react";
 import { withRouter } from "react-router-dom";
 import { connect } from "react-redux";
 import { compose } from "@reduxjs/toolkit";
-import { setGameCode } from "../store/gameActionCreator";
+import { setGameCode, setPlayerName } from "../store/gameActionCreator";
 import {
   returnMongoCollection,
   findMongo,
@@ -22,6 +22,7 @@ class PlayerWelcome extends PureComponent {
 
   handleSubmit = async (event) => {
     const { name, gameCode } = this.state;
+    const { setGameCode, setPlayerName, history } = this.props;
     event.preventDefault();
 
     const isExistingOpenGame = await findMongo(this.gamesCollection, {
@@ -35,7 +36,8 @@ class PlayerWelcome extends PureComponent {
     } else if (isExistingOpenGame[0].playerNames.length >= 4) {
       alert("Game is already full of players. Max 5 players.");
     } else {
-      this.props.setGameCode(gameCode);
+      setGameCode(gameCode);
+      setPlayerName(name);
       const isPushed = await pushToArrayMongo(
         this.gamesCollection,
         { gameCode },
@@ -43,7 +45,7 @@ class PlayerWelcome extends PureComponent {
       );
 
       if (isPushed) {
-        this.props.history.push("/waiting-room");
+        history.push("/waiting-room");
       } else {
         alert("Error adding player to game. Please try again");
       }
@@ -88,6 +90,7 @@ class PlayerWelcome extends PureComponent {
 
 const mapDispatchToProps = {
   setGameCode,
+  setPlayerName,
 };
 
 const reduxConnectFn = connect(null, mapDispatchToProps);
