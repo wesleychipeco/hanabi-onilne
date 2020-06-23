@@ -32,6 +32,8 @@ class PlayerWelcome extends PureComponent {
       alert("Game code does not exist. Please try entering game code again.");
     } else if (isExistingOpenGame[0].isGameStarted) {
       alert("Game is already in progress. Sorry!");
+    } else if (isExistingOpenGame[0].playerNames.length >= 4) {
+      alert("Game is already full of players. Max 5 players.");
     } else {
       this.props.setGameCode(gameCode);
       const isPushed = await pushToArrayMongo(
