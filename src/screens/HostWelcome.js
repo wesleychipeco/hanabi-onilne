@@ -32,7 +32,7 @@ class HostWelcome extends PureComponent {
   }
 
   generateCode = (deckName) => {
-    const { setGameCode, setDeckName, history } = this.props;
+    const { setGameCode, setDeckName } = this.props;
     const code = uuid().slice(0, 4).toUpperCase();
     setGameCode(code);
     setDeckName(deckName);
@@ -40,9 +40,10 @@ class HostWelcome extends PureComponent {
   };
 
   handleSubmit = (event) => {
+    const { setHostName, history } = this.props;
     event.preventDefault();
-    this.props.setHostName(this.state.name);
-    this.props.history.push("/waiting-room");
+    setHostName(this.state.name);
+    history.push("/waiting-room");
   };
 
   handleChange = (event) => {
