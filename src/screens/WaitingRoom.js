@@ -3,37 +3,65 @@ import { withRouter } from "react-router-dom";
 import { connect } from "react-redux";
 import { compose } from "@reduxjs/toolkit";
 import { getGameStateSelectors } from "../store/gameReducer";
+import { returnMongoCollection, findMongo } from "../utils/databaseManagement";
 
 class WaitingRoom extends PureComponent {
-  componentDidMount() {
-    const { deckName, gameCode, hostName, history } = this.props;
-    if (!deckName && !gameCode && !hostName) {
-      history.push("/");
+  constructor(props) {
+    super(props);
+
+    this.state = {
+      deckName: "",
+      hostName: "",
+      playerNames: [],
+    };
+  }
+
+  async componentDidMount() {
+    const { gameCode } = this.props;
+    const gamesCollection = returnMongoCollection("games");
+
+    const gameObjectArray = await findMongo(gamesCollection, { gameCode });
+    if (gameObjectArray.length === 1) {
+      const gameObject = gameObjectArray[0];
+      const { deckName, hostName, playerNames } = gameObject;
+      this.setState({
+        deckName,
+        hostName,
+        playerNames,
+      });
+    } else {
+      console.log("No waiting room exists, re-route to Home");
+      this.props.history.push("/");
     }
   }
 
   render() {
+    const { deckName, hostName, playerNames } = this.state;
+    const { gameCode, playerName } = this.props;
+    const meHostText = this.props.playerName === hostName ? " - ME" : "";
+
     return (
       <div>
         <h1>Waiting Room!</h1>
-        <h3>{`Playing with deck: ${this.props.deckName}`}</h3>
-        {this.props.gameCode && <h3>{`Game Code: ${this.props.gameCode}`}</h3>}
+        <h3>{`Playing with deck: ${deckName}`}</h3>
+        {gameCode && <h3>{`Game Code: ${gameCode}`}</h3>}
         <h3>List of Players:</h3>
-        <h4>Host: {this.props.hostName}</h4>
+        <h5>{`${hostName} - Host${meHostText}`}</h5>
+        {playerNames.map((playerNameMap) => {
+          const mePlayerText = playerNameMap === playerName ? " - ME" : "";
+          return <h5 key={playerName}>{`${playerName}${mePlayerText}`}</h5>;
+        })}
       </div>
     );
   }
 }
 
 const mapStateToProps = (state) => {
-  const { getGameCode, getDeckName, getHostName } = getGameStateSelectors(
-    state
-  );
+  const { getGameCode, getPlayerName } = getGameStateSelectors(state);
 
   return {
     gameCode: getGameCode(),
-    deckName: getDeckName(),
-    hostName: getHostName(),
+    playerName: getPlayerName(),
   };
 };
 

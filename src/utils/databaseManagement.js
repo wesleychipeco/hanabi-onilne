@@ -17,20 +17,22 @@ const returnMongoCollection = (collectionName) => {
   return db.collection(collectionName);
 };
 
-const deleteInsertMongo = (collection, data, deleteQuery = {}) => {
-  collection
+const deleteInsertMongo = async (collection, data, deleteQuery = {}) => {
+  return collection
     .deleteOne(deleteQuery)
     .then((result) => {
       console.log(`Deleted ${result.deletedCount} documents.`);
-      collection
+      return collection
         .insertOne(data)
         .then(() => {
           console.log(
             `Mongo db document inserted to collection ${collection.namespace}!`
           );
+          return true;
         })
         .catch((err1) => {
           console.log(`Failed to insert documents: ${err1}`);
+          return false;
         });
     })
     .catch((err) => console.log(`Failed to delete documents: ${err}`));
@@ -43,4 +45,19 @@ const findMongo = async (collection, findQuery = {}) => {
     .then((docs) => docs);
 };
 
-export { returnMongoCollection, deleteInsertMongo, findMongo };
+const pushToArrayMongo = async (collection, findQuery, pushKeyValuePair) => {
+  return collection
+    .updateOne(findQuery, { $push: pushKeyValuePair })
+    .then(() => true)
+    .catch((err) => {
+      console.log("Error pushing to array.");
+      return false;
+    });
+};
+
+export {
+  returnMongoCollection,
+  deleteInsertMongo,
+  findMongo,
+  pushToArrayMongo,
+};
