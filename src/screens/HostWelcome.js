@@ -128,6 +128,7 @@ class HostWelcome extends PureComponent {
         </div>
       );
     }
+
     return (
       <div>
         <h2>Select a deck to play with</h2>

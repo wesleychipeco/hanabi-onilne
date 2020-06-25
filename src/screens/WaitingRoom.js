@@ -14,13 +14,19 @@ class WaitingRoom extends PureComponent {
       hostName: "",
       playerNames: [],
     };
+
+    this.gamesCollection = returnMongoCollection("games");
   }
 
   async componentDidMount() {
-    const { gameCode } = this.props;
-    const gamesCollection = returnMongoCollection("games");
+    await this.updateWithNewMongoData(true);
+    await this.startListening();
+  }
 
-    const gameObjectArray = await findMongo(gamesCollection, { gameCode });
+  updateWithNewMongoData = async (shouldReroute = false) => {
+    const { gameCode } = this.props;
+    // Put values from Mongo into state
+    const gameObjectArray = await findMongo(this.gamesCollection, { gameCode });
     if (gameObjectArray.length === 1) {
       const gameObject = gameObjectArray[0];
       const { deckName, hostName, playerNames } = gameObject;
@@ -29,11 +35,55 @@ class WaitingRoom extends PureComponent {
         hostName,
         playerNames,
       });
-    } else {
+    } else if (shouldReroute) {
       console.log("No waiting room exists, re-route to Home");
       this.props.history.push("/");
     }
-  }
+  };
+
+  shouldUpdateRender = async (changeEvent) => {
+    const { gameCode } = this.props;
+    if (
+      changeEvent?.operationType === "update" &&
+      changeEvent?.fullDocument?.gameCode === gameCode
+    ) {
+      await this.updateWithNewMongoData(false);
+    }
+  };
+
+  startListening = async () => {
+    const ok = await this.gamesCollection.watch();
+    ok.onNext(async (changeEvent) => {
+      console.log("new update!", changeEvent);
+      await this.shouldUpdateRender(changeEvent);
+    });
+  };
+
+  renderHostOnlyStartGameButton = () => {
+    const isButtonDisabled = this.state.playerNames.length === 0;
+    if (this.props.playerName === this.state.hostName) {
+      return (
+        <button
+          disabled={isButtonDisabled}
+          onClick={this.startGame}
+          style={{
+            width: 150,
+            height: 75,
+            backgroundColor: isButtonDisabled
+              ? "rgb(192,192,192)"
+              : "rgb(50,205,50)",
+          }}
+        >
+          Start Game!
+        </button>
+      );
+    }
+    return <h4>Wait for the host to start the game</h4>;
+  };
+
+  startGame = () => {
+    console.log("START GAME!!!!!!!!!!");
+  };
 
   render() {
     const { deckName, hostName, playerNames } = this.state;
@@ -49,8 +99,11 @@ class WaitingRoom extends PureComponent {
         <h5>{`${hostName} - Host${meHostText}`}</h5>
         {playerNames.map((playerNameMap) => {
           const mePlayerText = playerNameMap === playerName ? " - ME" : "";
-          return <h5 key={playerName}>{`${playerName}${mePlayerText}`}</h5>;
+          return (
+            <h5 key={playerNameMap}>{`${playerNameMap}${mePlayerText}`}</h5>
+          );
         })}
+        {this.renderHostOnlyStartGameButton()}
       </div>
     );
   }
