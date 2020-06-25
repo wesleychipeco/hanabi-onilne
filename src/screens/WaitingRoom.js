@@ -14,14 +14,19 @@ class WaitingRoom extends PureComponent {
       hostName: "",
       playerNames: [],
     };
+
+    this.gamesCollection = returnMongoCollection("games");
   }
 
   async componentDidMount() {
-    const { gameCode } = this.props;
-    const gamesCollection = returnMongoCollection("games");
+    await this.updateWithNewMongoData(true);
+    await this.startListening();
+  }
 
+  updateWithNewMongoData = async (shouldReroute = false) => {
+    const { gameCode } = this.props;
     // Put values from Mongo into state
-    const gameObjectArray = await findMongo(gamesCollection, { gameCode });
+    const gameObjectArray = await findMongo(this.gamesCollection, { gameCode });
     if (gameObjectArray.length === 1) {
       const gameObject = gameObjectArray[0];
       const { deckName, hostName, playerNames } = gameObject;
@@ -30,11 +35,29 @@ class WaitingRoom extends PureComponent {
         hostName,
         playerNames,
       });
-    } else {
+    } else if (shouldReroute) {
       console.log("No waiting room exists, re-route to Home");
       this.props.history.push("/");
     }
-  }
+  };
+
+  shouldUpdateRender = async (changeEvent) => {
+    const { gameCode } = this.props;
+    if (
+      changeEvent?.operationType === "update" &&
+      changeEvent?.fullDocument?.gameCode === gameCode
+    ) {
+      await this.updateWithNewMongoData(false);
+    }
+  };
+
+  startListening = async () => {
+    const ok = await this.gamesCollection.watch();
+    ok.onNext(async (changeEvent) => {
+      console.log("new update!", changeEvent);
+      await this.shouldUpdateRender(changeEvent);
+    });
+  };
 
   renderHostOnlyStartGameButton = () => {
     const isButtonDisabled = this.state.playerNames.length === 0;

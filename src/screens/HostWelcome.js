@@ -109,14 +109,6 @@ class HostWelcome extends PureComponent {
     this.setState({ name: event.target.value });
   };
 
-  startListening = async () => {
-    const ok = await this.gamesCollection.watch();
-    // console.log("ok ", ok);
-    ok.onNext((next) => {
-      console.log("crazy", next);
-    });
-  };
-
   shouldRenderNameInput = () => {
     if (this.state.isDeckSelected) {
       return (
@@ -139,8 +131,6 @@ class HostWelcome extends PureComponent {
 
     return (
       <div>
-        <button onClick={this.startListening}>start listening</button>
-
         <h2>Select a deck to play with</h2>
         {this.state.decks.map((deck) => (
           <button
