@@ -29,12 +29,16 @@ class WaitingRoom extends PureComponent {
     const gameObjectArray = await findMongo(this.gamesCollection, { gameCode });
     if (gameObjectArray.length === 1) {
       const gameObject = gameObjectArray[0];
-      const { deckName, hostName, playerNames } = gameObject;
-      this.setState({
-        deckName,
-        hostName,
-        playerNames,
-      });
+      if (gameObject.isGameStarted) {
+        this.props.history.push("/game-board");
+      } else {
+        const { deckName, hostName, playerNames } = gameObject;
+        this.setState({
+          deckName,
+          hostName,
+          playerNames,
+        });
+      }
     } else if (shouldReroute) {
       console.log("No waiting room exists, re-route to Home");
       this.props.history.push("/");
@@ -83,6 +87,11 @@ class WaitingRoom extends PureComponent {
 
   startGame = () => {
     console.log("START GAME!!!!!!!!!!");
+    const { gameCode } = this.props;
+    this.gamesCollection.updateOne(
+      { gameCode },
+      { $set: { isGameStarted: true } }
+    );
   };
 
   render() {
