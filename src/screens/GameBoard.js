@@ -104,7 +104,6 @@ class GameBoard extends PureComponent {
     const { gameCode } = this.props;
     const gameObjectArray = await findMongo(this.gamesCollection, { gameCode });
     if (gameObjectArray.length === 1) {
-      // console.log("game object array", gameObjectArray);
       const gameObject = gameObjectArray[0];
       // get decks
       const { deckName, playerNames, hostName } = gameObject;
@@ -131,6 +130,23 @@ class GameBoard extends PureComponent {
       this.setState({
         localizedPlayersList,
       });
+
+      this.gamesCollection.updateOne(
+        { gameCode },
+        {
+          $set: {
+            turnNumber: 0,
+            turnLetter: null,
+            playersList,
+            playersOrderList,
+            mistakesMade: 0,
+            cluesRemaining: 8,
+            deckCards: shuffledCards,
+            playedCards: [],
+            discardedCards: [],
+          },
+        }
+      );
     }
   };
 
@@ -191,7 +207,7 @@ const mapStateToProps = (state) => {
 
   return {
     gameCode: "F6A8",
-    playerName: "player-non-host",
+    playerName: "player2",
   };
 };
 
