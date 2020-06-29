@@ -205,9 +205,12 @@ class GameBoard extends PureComponent {
 const mapStateToProps = (state) => {
   const { getGameCode, getPlayerName } = getGameStateSelectors(state);
 
+  const hardcodedPlayersList = ["host", "player1", "player2", "player3"];
+  const randomInteger = Math.floor(Math.random() * Math.floor(5));
+
   return {
     gameCode: "F6A8",
-    playerName: "player2",
+    playerName: hardcodedPlayersList[randomInteger],
   };
 };
 
