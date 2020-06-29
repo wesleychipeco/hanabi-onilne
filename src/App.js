@@ -5,6 +5,7 @@ import HomePage from "./screens/HomePage";
 import HostWelcome from "./screens/HostWelcome";
 import PlayerWelcome from "./screens/PlayerWelcome";
 import WaitingRoom from "./screens/WaitingRoom";
+import GameBoard from "./screens/GameBoard";
 import withScreenSize from "./screens/withScreenSize";
 
 class App extends Component {
@@ -23,6 +24,9 @@ class App extends Component {
           </Route>
           <Route exact path="/waiting-room">
             <WaitingRoom {...this.props} />
+          </Route>
+          <Route exact path="/game-board">
+            <GameBoard {...this.props} />
           </Route>
         </Switch>
       </div>
