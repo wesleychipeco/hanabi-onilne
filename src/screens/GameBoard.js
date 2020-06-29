@@ -15,7 +15,9 @@ class GameBoard extends PureComponent {
     this.decksCollection = returnMongoCollection("decks");
 
     this.state = {
-      playersList: [],
+      playerOrderIndex: null,
+      localizedPlayersList: [],
+      myPlayer: {},
     };
   }
 
@@ -64,17 +66,35 @@ class GameBoard extends PureComponent {
 
     for (let i = 0; i < shuffledPlayers.length; i++) {
       const playerLetter = playerLetterArray[i];
+      const playerName = shuffledPlayers[i];
       const hand = shuffledCards.splice(0, cardsPerPlayer);
 
       const playerObject = {
-        playerName: shuffledPlayers[i],
+        playerName,
         playerLetter,
         hand,
       };
       playersList.push(playerObject);
       playersOrderList.push(playerLetter);
+
+      if (playerName === this.props.playerName) {
+        this.setState({
+          playerOrderIndex: i,
+          myPlayer: playerObject,
+        });
+      }
     }
     return { playersList, playersOrderList };
+  };
+
+  getLocalizedPlayersList = (playersList) => {
+    const localizedPlayersList = [...playersList];
+    const tail = localizedPlayersList.slice(this.state.playerOrderIndex + 1);
+    const wrappedFromStart = localizedPlayersList.slice(
+      0,
+      this.state.playerOrderIndex
+    );
+    return [...tail, ...wrappedFromStart];
   };
 
   // Shuffle deck
@@ -104,19 +124,63 @@ class GameBoard extends PureComponent {
         playersList,
         playersOrderList,
       } = this.dealCardsAndAssignPlayerValues(shuffledCards, shuffledPlayers);
+      console.log("pl", playersList);
 
+      const localizedPlayersList = this.getLocalizedPlayersList(playersList);
+      console.log("local", localizedPlayersList);
       this.setState({
-        playersList,
-        playersOrderList,
+        localizedPlayersList,
       });
     }
   };
 
   render() {
-    console.log("render", this.state.playersList);
+    console.log("render", this.state);
+    const { localizedPlayersList } = this.state;
+
+    if (localizedPlayersList.length === 0) {
+      return null;
+    }
+
     return (
       <div>
-        <h3>Game Board</h3>
+        <div>
+          <h3>Game Board</h3>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-around",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "space-around",
+            }}
+          >
+            {localizedPlayersList.map((player) => {
+              return (
+                <div key={player.playerLetter}>
+                  <p>{player.playerName}</p>
+                  {player.hand.map((card) => (
+                    <p key={`${card.cardName}-${card.keyCopy}`}>
+                      {card.cardName}
+                    </p>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+          <div>
+            <p>My cards</p>
+            {this.state.myPlayer.hand.map((card) => (
+              <p key={`${card.cardName}-${card.keyCopy}`}>{card.cardName}</p>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -127,7 +191,7 @@ const mapStateToProps = (state) => {
 
   return {
     gameCode: "F6A8",
-    playerName: getPlayerName(),
+    playerName: "player-non-host",
   };
 };
 
