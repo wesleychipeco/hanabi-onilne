@@ -15,6 +15,7 @@ class GameBoard extends PureComponent {
 
     this.state = {
       playerOrderIndex: null,
+      playersList: [],
       localizedPlayersList: [],
       myPlayer: {},
       turnNumber: 0,
@@ -42,17 +43,14 @@ class GameBoard extends PureComponent {
         changeEvent?.operationType === "update" &&
         changeEvent?.fullDocument?.gameCode === gameCode
       ) {
-        const { fullDocument } = changeEvent;
-
-        console.log("NEW FULL DOC", fullDocument);
-        this.checkForNewTurn(fullDocument);
-        this.checkForPendingPlayerAction(changeEvent);
+        this.checkForNewTurn(changeEvent);
       }
     });
   };
 
-  checkForNewTurn = (newFullDocument) => {
-    const { turnNumber, playersList } = newFullDocument;
+  checkForNewTurn = (changeEvent) => {
+    const { fullDocument } = changeEvent;
+    const { turnNumber, playersList } = fullDocument;
     if (this.state.turnNumber + 1 === turnNumber) {
       console.log("new turn");
       if (playersList[0].playerName === this.props.playerName) {
@@ -61,18 +59,20 @@ class GameBoard extends PureComponent {
       } else {
         console.log("its not my turn..... :(");
         this.setState({ isItMyTurn: false, turnNumber });
+        this.checkForPendingPlayerAction(changeEvent);
       }
     } else {
-      console.log(" NOOOO new turn");
+      console.log("NOOOO new turn");
+      this.checkForPendingPlayerAction(changeEvent);
     }
   };
 
   checkForPendingPlayerAction = (changeEvent) => {
     const pendingPlayerAction =
       changeEvent?.updateDescription?.updatedFields?.pendingPlayerAction;
+    this.setState({ pendingPlayerAction });
     if (pendingPlayerAction) {
       console.log("****** playerActionupdated");
-      this.setState({ pendingPlayerAction });
     } else {
       console.log("****** player action not updated");
     }
@@ -146,8 +146,8 @@ class GameBoard extends PureComponent {
       playerNames.push(hostName);
       /////// UN COMMENT LATER
       // const shuffledPlayers = this.shuffleArray(playerNames);
-
       const shuffledPlayers = [...playerNames];
+
       console.log("SHUFFLED PLAYERS", shuffledPlayers);
 
       const { playersList } = this.dealCardsAndAssignPlayerValues(
@@ -159,6 +159,7 @@ class GameBoard extends PureComponent {
       const localizedPlayersList = this.getLocalizedPlayersList(playersList);
       console.log("localizedPlayersList", localizedPlayersList);
       this.setState({
+        playersList,
         localizedPlayersList,
       });
 
@@ -181,47 +182,77 @@ class GameBoard extends PureComponent {
   };
 
   giveClue = () => {
-    const { gameCode, playerName } = this.props;
+    const { gameCode } = this.props;
     this.gamesCollection.updateOne(
       { gameCode },
       {
         $set: {
-          pendingPlayerAction: `${playerName} is giving a clue`,
+          pendingPlayerAction: "giving",
+        },
+        $inc: {
+          cluesRemaining: -1,
         },
       }
     );
   };
 
   playCard = () => {
-    const { gameCode, playerName } = this.props;
+    const { gameCode } = this.props;
     this.gamesCollection.updateOne(
       { gameCode },
       {
         $set: {
-          pendingPlayerAction: `${playerName} is playing a card`,
+          pendingPlayerAction: "playing",
         },
       }
     );
   };
 
   discardCard = () => {
-    const { gameCode, playerName } = this.props;
+    const { gameCode } = this.props;
     this.gamesCollection.updateOne(
       { gameCode },
       {
         $set: {
-          pendingPlayerAction: `${playerName} is discarding a card`,
+          pendingPlayerAction: "discarding",
         },
       }
     );
   };
 
+  endTurn = () => {
+    console.log("END TURN!!!!!");
+    const { isItMyTurn, playersList } = this.state;
+    if (isItMyTurn) {
+      const newPlayersList = [...playersList];
+      newPlayersList.push(newPlayersList.shift());
+      console.log("neww!", newPlayersList);
+      const { gameCode } = this.props;
+      this.gamesCollection.updateOne(
+        { gameCode },
+        {
+          $set: {
+            playersList: newPlayersList,
+            pendingPlayerAction: "",
+          },
+          $inc: {
+            turnNumber: 1,
+          },
+        }
+      );
+    }
+  };
+
   shouldDisplayPendingPlayerAction = () => {
     const { pendingPlayerAction } = this.state;
     if (pendingPlayerAction) {
-      return <h4>{pendingPlayerAction}</h4>;
+      const objectNoun = pendingPlayerAction === "giving" ? "clue" : "card";
+      return (
+        <h4>{`${this.props.playerName} is ${pendingPlayerAction} a ${objectNoun}.`}</h4>
+      );
     }
-    return null;
+    // Not right
+    return <h4>{`${this.props.playerName}'s turn!`}</h4>;
   };
 
   shouldDisplayMyTurnActions = () => {
@@ -231,6 +262,46 @@ class GameBoard extends PureComponent {
           <button onClick={this.giveClue}>Give a clue</button>
           <button onClick={this.playCard}>Play a card</button>
           <button onClick={this.discardCard}>Discard a card</button>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  getTurnConfirmationMessage = (pendingPlayerAction) => {
+    let messageText, buttonText;
+    switch (pendingPlayerAction) {
+      case "giving":
+        messageText =
+          'Give a clue to another player. Then press "End Turn" button.';
+        buttonText = "End Turn";
+        break;
+      case "playing":
+        messageText = 'Select a card to play. Then press "Play" button.';
+        buttonText = "Play";
+        break;
+      case "discarding":
+        messageText = 'Select a card to discard. Then press "Discard" button.';
+        buttonText = "Discard";
+        break;
+      default:
+        messageText = "N/A";
+        buttonText = "N/A";
+        break;
+    }
+    return { messageText, buttonText };
+  };
+
+  shouldDisplayMyTurnConfirmation = () => {
+    const { isItMyTurn, pendingPlayerAction } = this.state;
+    if (isItMyTurn && pendingPlayerAction) {
+      const { messageText, buttonText } = this.getTurnConfirmationMessage(
+        pendingPlayerAction
+      );
+      return (
+        <div>
+          <p>{messageText}</p>
+          <button onClick={this.endTurn}>{buttonText}</button>
         </div>
       );
     }
@@ -293,6 +364,7 @@ class GameBoard extends PureComponent {
             ))}
           </div>
           {this.shouldDisplayMyTurnActions()}
+          {this.shouldDisplayMyTurnConfirmation()}
         </div>
       </div>
     );
