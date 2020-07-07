@@ -6,7 +6,6 @@ import { getGameStateSelectors } from "../store/gameReducer";
 import { returnMongoCollection, findMongo } from "../utils/databaseManagement";
 
 const CARDS_PER_PLAYER = [null, null, 5, 5, 4, 4];
-const playerLetterArray = ["A", "B", "C", "D", "E"];
 
 class GameBoard extends PureComponent {
   constructor(props) {
@@ -18,6 +17,9 @@ class GameBoard extends PureComponent {
       playerOrderIndex: null,
       localizedPlayersList: [],
       myPlayer: {},
+      turnNumber: 0,
+      isItMyTurn: false,
+      pendingPlayerAction: "",
     };
   }
 
@@ -43,8 +45,37 @@ class GameBoard extends PureComponent {
         const { fullDocument } = changeEvent;
 
         console.log("NEW FULL DOC", fullDocument);
+        this.checkForNewTurn(fullDocument);
+        this.checkForPendingPlayerAction(changeEvent);
       }
     });
+  };
+
+  checkForNewTurn = (newFullDocument) => {
+    const { turnNumber, playersList } = newFullDocument;
+    if (this.state.turnNumber + 1 === turnNumber) {
+      console.log("new turn");
+      if (playersList[0].playerName === this.props.playerName) {
+        console.log("Its my turn now!!!!");
+        this.setState({ isItMyTurn: true, turnNumber });
+      } else {
+        console.log("its not my turn..... :(");
+        this.setState({ isItMyTurn: false, turnNumber });
+      }
+    } else {
+      console.log(" NOOOO new turn");
+    }
+  };
+
+  checkForPendingPlayerAction = (changeEvent) => {
+    const pendingPlayerAction =
+      changeEvent?.updateDescription?.updatedFields?.pendingPlayerAction;
+    if (pendingPlayerAction) {
+      console.log("****** playerActionupdated");
+      this.setState({ pendingPlayerAction });
+    } else {
+      console.log("****** player action not updated");
+    }
   };
 
   shuffleArray = (startingDeck) => {
@@ -60,22 +91,18 @@ class GameBoard extends PureComponent {
 
   dealCardsAndAssignPlayerValues = (shuffledCards, shuffledPlayers) => {
     const playersList = [];
-    const playersOrderList = [];
     const numberOfPlayers = shuffledPlayers.length;
     const cardsPerPlayer = CARDS_PER_PLAYER[numberOfPlayers];
 
     for (let i = 0; i < shuffledPlayers.length; i++) {
-      const playerLetter = playerLetterArray[i];
       const playerName = shuffledPlayers[i];
       const hand = shuffledCards.splice(0, cardsPerPlayer);
 
       const playerObject = {
         playerName,
-        playerLetter,
         hand,
       };
       playersList.push(playerObject);
-      playersOrderList.push(playerLetter);
 
       if (playerName === this.props.playerName) {
         this.setState({
@@ -84,7 +111,7 @@ class GameBoard extends PureComponent {
         });
       }
     }
-    return { playersList, playersOrderList };
+    return { playersList };
   };
 
   getLocalizedPlayersList = (playersList) => {
@@ -117,16 +144,20 @@ class GameBoard extends PureComponent {
 
       // SHUFFLE PLAYERS
       playerNames.push(hostName);
-      const shuffledPlayers = this.shuffleArray(playerNames);
+      /////// UN COMMENT LATER
+      // const shuffledPlayers = this.shuffleArray(playerNames);
 
-      const {
-        playersList,
-        playersOrderList,
-      } = this.dealCardsAndAssignPlayerValues(shuffledCards, shuffledPlayers);
-      console.log("pl", playersList);
+      const shuffledPlayers = [...playerNames];
+      console.log("SHUFFLED PLAYERS", shuffledPlayers);
+
+      const { playersList } = this.dealCardsAndAssignPlayerValues(
+        shuffledCards,
+        shuffledPlayers
+      );
+      console.log("playersList", playersList);
 
       const localizedPlayersList = this.getLocalizedPlayersList(playersList);
-      console.log("local", localizedPlayersList);
+      console.log("localizedPlayersList", localizedPlayersList);
       this.setState({
         localizedPlayersList,
       });
@@ -135,24 +166,80 @@ class GameBoard extends PureComponent {
         { gameCode },
         {
           $set: {
-            turnNumber: 0,
-            turnLetter: null,
+            turnNumber: 1,
             playersList,
-            playersOrderList,
             mistakesMade: 0,
             cluesRemaining: 8,
             deckCards: shuffledCards,
             playedCards: [],
             discardedCards: [],
+            pendingPlayerAction: "",
           },
         }
       );
     }
   };
 
+  giveClue = () => {
+    const { gameCode, playerName } = this.props;
+    this.gamesCollection.updateOne(
+      { gameCode },
+      {
+        $set: {
+          pendingPlayerAction: `${playerName} is giving a clue`,
+        },
+      }
+    );
+  };
+
+  playCard = () => {
+    const { gameCode, playerName } = this.props;
+    this.gamesCollection.updateOne(
+      { gameCode },
+      {
+        $set: {
+          pendingPlayerAction: `${playerName} is playing a card`,
+        },
+      }
+    );
+  };
+
+  discardCard = () => {
+    const { gameCode, playerName } = this.props;
+    this.gamesCollection.updateOne(
+      { gameCode },
+      {
+        $set: {
+          pendingPlayerAction: `${playerName} is discarding a card`,
+        },
+      }
+    );
+  };
+
+  shouldDisplayPendingPlayerAction = () => {
+    const { pendingPlayerAction } = this.state;
+    if (pendingPlayerAction) {
+      return <h4>{pendingPlayerAction}</h4>;
+    }
+    return null;
+  };
+
+  shouldDisplayMyTurnActions = () => {
+    if (this.state.isItMyTurn) {
+      return (
+        <div>
+          <button onClick={this.giveClue}>Give a clue</button>
+          <button onClick={this.playCard}>Play a card</button>
+          <button onClick={this.discardCard}>Discard a card</button>
+        </div>
+      );
+    }
+    return null;
+  };
+
   render() {
-    console.log("render", this.state);
-    const { localizedPlayersList } = this.state;
+    // console.log("render", this.state);
+    const { localizedPlayersList, pendingPlayerAction } = this.state;
 
     if (localizedPlayersList.length === 0) {
       return null;
@@ -162,6 +249,7 @@ class GameBoard extends PureComponent {
       <div>
         <div>
           <h3>Game Board</h3>
+          {this.shouldDisplayPendingPlayerAction()}
         </div>
         <div
           style={{
@@ -177,9 +265,9 @@ class GameBoard extends PureComponent {
               justifyContent: "space-around",
             }}
           >
-            {localizedPlayersList.map((player) => {
+            {localizedPlayersList.map((player, index) => {
               return (
-                <div key={player.playerLetter}>
+                <div key={`Player${index}-${player.playerName}`}>
                   <p>{player.playerName}</p>
                   {player.hand.map((card) => (
                     <p key={`${card.cardName}-${card.keyCopy}`}>
@@ -191,11 +279,20 @@ class GameBoard extends PureComponent {
             })}
           </div>
           <div>
+            <div>
+              <p>Played Cards</p>
+            </div>
+            <div>
+              <p>Discarded Cards</p>
+            </div>
+          </div>
+          <div>
             <p>My cards</p>
             {this.state.myPlayer.hand.map((card) => (
               <p key={`${card.cardName}-${card.keyCopy}`}>{card.cardName}</p>
             ))}
           </div>
+          {this.shouldDisplayMyTurnActions()}
         </div>
       </div>
     );
@@ -210,7 +307,7 @@ const mapStateToProps = (state) => {
 
   return {
     gameCode: "F6A8",
-    playerName: hardcodedPlayersList[randomInteger],
+    playerName: hardcodedPlayersList[1],
   };
 };
 
