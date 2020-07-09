@@ -6,7 +6,6 @@ import { getGameStateSelectors } from "../store/gameReducer";
 import { returnMongoCollection, findMongo } from "../utils/databaseManagement";
 
 const CARDS_PER_PLAYER = [null, null, 5, 5, 4, 4];
-const playerLetterArray = ["A", "B", "C", "D", "E"];
 
 class GameBoard extends PureComponent {
   constructor(props) {
@@ -16,19 +15,21 @@ class GameBoard extends PureComponent {
 
     this.state = {
       playerOrderIndex: null,
+      playersList: [],
       localizedPlayersList: [],
       myPlayer: {},
+      turnNumber: 0,
+      isItMyTurn: false,
+      pendingPlayerAction: "",
+      pendingActionObject: null,
     };
   }
 
   async componentDidMount() {
     await this.startListening();
 
+    // set playerList, shuffle and deal
     await this.startGameActions();
-
-    // set player
-
-    // shuffle deck
   }
 
   startListening = async () => {
@@ -40,11 +41,39 @@ class GameBoard extends PureComponent {
         changeEvent?.operationType === "update" &&
         changeEvent?.fullDocument?.gameCode === gameCode
       ) {
-        const { fullDocument } = changeEvent;
-
-        console.log("NEW FULL DOC", fullDocument);
+        this.checkForNewTurn(changeEvent);
       }
     });
+  };
+
+  checkForNewTurn = (changeEvent) => {
+    const { fullDocument } = changeEvent;
+    const { turnNumber, playersList } = fullDocument;
+    if (this.state.turnNumber + 1 === turnNumber) {
+      // console.log("new turn");
+      if (playersList[0].playerName === this.props.playerName) {
+        // console.log("Its my turn now!!!!");
+        this.setState({ isItMyTurn: true, turnNumber });
+      } else {
+        // console.log("its not my turn..... :(");
+        this.setState({ isItMyTurn: false, turnNumber });
+        this.checkForPendingPlayerAction(changeEvent);
+      }
+    } else {
+      // console.log("NOOOO new turn");
+      this.checkForPendingPlayerAction(changeEvent);
+    }
+  };
+
+  checkForPendingPlayerAction = (changeEvent) => {
+    const pendingPlayerAction =
+      changeEvent?.updateDescription?.updatedFields?.pendingPlayerAction;
+    this.setState({ pendingPlayerAction });
+    // if (pendingPlayerAction) {
+    //   console.log("****** playerActionupdated");
+    // } else {
+    //   console.log("****** player action not updated");
+    // }
   };
 
   shuffleArray = (startingDeck) => {
@@ -60,22 +89,18 @@ class GameBoard extends PureComponent {
 
   dealCardsAndAssignPlayerValues = (shuffledCards, shuffledPlayers) => {
     const playersList = [];
-    const playersOrderList = [];
     const numberOfPlayers = shuffledPlayers.length;
     const cardsPerPlayer = CARDS_PER_PLAYER[numberOfPlayers];
 
     for (let i = 0; i < shuffledPlayers.length; i++) {
-      const playerLetter = playerLetterArray[i];
       const playerName = shuffledPlayers[i];
       const hand = shuffledCards.splice(0, cardsPerPlayer);
 
       const playerObject = {
         playerName,
-        playerLetter,
         hand,
       };
       playersList.push(playerObject);
-      playersOrderList.push(playerLetter);
 
       if (playerName === this.props.playerName) {
         this.setState({
@@ -84,7 +109,7 @@ class GameBoard extends PureComponent {
         });
       }
     }
-    return { playersList, playersOrderList };
+    return { playersList };
   };
 
   getLocalizedPlayersList = (playersList) => {
@@ -117,17 +142,22 @@ class GameBoard extends PureComponent {
 
       // SHUFFLE PLAYERS
       playerNames.push(hostName);
-      const shuffledPlayers = this.shuffleArray(playerNames);
+      /////// UN COMMENT LATER
+      // const shuffledPlayers = this.shuffleArray(playerNames);
+      const shuffledPlayers = [...playerNames];
 
-      const {
-        playersList,
-        playersOrderList,
-      } = this.dealCardsAndAssignPlayerValues(shuffledCards, shuffledPlayers);
-      console.log("pl", playersList);
+      console.log("SHUFFLED PLAYERS", shuffledPlayers);
+
+      const { playersList } = this.dealCardsAndAssignPlayerValues(
+        shuffledCards,
+        shuffledPlayers
+      );
+      console.log("playersList", playersList);
 
       const localizedPlayersList = this.getLocalizedPlayersList(playersList);
-      console.log("local", localizedPlayersList);
+      console.log("localizedPlayersList", localizedPlayersList);
       this.setState({
+        playersList,
         localizedPlayersList,
       });
 
@@ -135,23 +165,157 @@ class GameBoard extends PureComponent {
         { gameCode },
         {
           $set: {
-            turnNumber: 0,
-            turnLetter: null,
+            turnNumber: 1,
             playersList,
-            playersOrderList,
             mistakesMade: 0,
             cluesRemaining: 8,
             deckCards: shuffledCards,
             playedCards: [],
             discardedCards: [],
+            pendingPlayerAction: "",
           },
         }
       );
     }
   };
 
+  giveClue = () => {
+    const { gameCode } = this.props;
+    const pendingActionObject = {
+      $inc: {
+        turnNumber: 1,
+        cluesRemaining: -1,
+      },
+    };
+
+    this.setState({
+      pendingActionObject,
+    });
+
+    this.gamesCollection.updateOne(
+      { gameCode },
+      {
+        $set: {
+          pendingPlayerAction: "giving",
+        },
+      }
+    );
+  };
+
+  playCard = () => {
+    const { gameCode } = this.props;
+    this.gamesCollection.updateOne(
+      { gameCode },
+      {
+        $set: {
+          pendingPlayerAction: "playing",
+        },
+      }
+    );
+  };
+
+  discardCard = () => {
+    const { gameCode } = this.props;
+    this.gamesCollection.updateOne(
+      { gameCode },
+      {
+        $set: {
+          pendingPlayerAction: "discarding",
+        },
+      }
+    );
+  };
+
+  endTurn = () => {
+    console.log("END TURN!!!!!");
+    const { isItMyTurn, playersList, pendingActionObject } = this.state;
+    if (isItMyTurn) {
+      const newPlayersList = [...playersList];
+      newPlayersList.push(newPlayersList.shift());
+      const { gameCode } = this.props;
+
+      this.setState({
+        playersList: newPlayersList,
+      });
+
+      const updateObject = {
+        $set: {
+          playersList: newPlayersList,
+          pendingPlayerAction: "",
+        },
+        ...pendingActionObject,
+      };
+
+      this.gamesCollection.updateOne({ gameCode }, updateObject);
+    }
+  };
+
+  shouldDisplayPendingPlayerAction = () => {
+    const { pendingPlayerAction, playersList } = this.state;
+    if (pendingPlayerAction) {
+      const objectNoun = pendingPlayerAction === "giving" ? "clue" : "card";
+      return (
+        <h4>{`${playersList[0].playerName} is ${pendingPlayerAction} a ${objectNoun}.`}</h4>
+      );
+    }
+    return <h4>{`${playersList[0].playerName}'s turn!`}</h4>;
+  };
+
+  shouldDisplayMyTurnActions = () => {
+    if (this.state.isItMyTurn) {
+      return (
+        <div>
+          <button onClick={this.giveClue}>Give a clue</button>
+          <button onClick={this.playCard}>Play a card</button>
+          <button onClick={this.discardCard}>Discard a card</button>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  getTurnConfirmationMessage = (pendingPlayerAction) => {
+    let messageText, buttonText;
+    switch (pendingPlayerAction) {
+      case "giving":
+        messageText =
+          'Give a clue to another player. Then press "End Turn" button.';
+        buttonText = "End Turn";
+        break;
+      case "playing":
+        messageText = 'Select a card to play. Then press "Play" button.';
+        buttonText = "Play";
+        break;
+      case "discarding":
+        messageText = 'Select a card to discard. Then press "Discard" button.';
+        buttonText = "Discard";
+        break;
+      default:
+        messageText = "N/A";
+        buttonText = "N/A";
+        break;
+    }
+    return { messageText, buttonText };
+  };
+
+  shouldDisplayMyTurnConfirmation = () => {
+    const { isItMyTurn, pendingPlayerAction } = this.state;
+    if (isItMyTurn && pendingPlayerAction) {
+      const { messageText, buttonText } = this.getTurnConfirmationMessage(
+        pendingPlayerAction
+      );
+      return (
+        <div>
+          <p>{messageText}</p>
+          <button onClick={this.endTurn}>{buttonText}</button>
+        </div>
+      );
+    }
+    return null;
+  };
+
   render() {
-    console.log("render", this.state);
+    // console.log("render", this.state);
     const { localizedPlayersList } = this.state;
 
     if (localizedPlayersList.length === 0) {
@@ -162,6 +326,7 @@ class GameBoard extends PureComponent {
       <div>
         <div>
           <h3>Game Board</h3>
+          {this.shouldDisplayPendingPlayerAction()}
         </div>
         <div
           style={{
@@ -177,9 +342,9 @@ class GameBoard extends PureComponent {
               justifyContent: "space-around",
             }}
           >
-            {localizedPlayersList.map((player) => {
+            {localizedPlayersList.map((player, index) => {
               return (
-                <div key={player.playerLetter}>
+                <div key={`Player${index}-${player.playerName}`}>
                   <p>{player.playerName}</p>
                   {player.hand.map((card) => (
                     <p key={`${card.cardName}-${card.keyCopy}`}>
@@ -191,11 +356,21 @@ class GameBoard extends PureComponent {
             })}
           </div>
           <div>
+            <div>
+              <p>Played Cards</p>
+            </div>
+            <div>
+              <p>Discarded Cards</p>
+            </div>
+          </div>
+          <div>
             <p>My cards</p>
             {this.state.myPlayer.hand.map((card) => (
               <p key={`${card.cardName}-${card.keyCopy}`}>{card.cardName}</p>
             ))}
           </div>
+          {this.shouldDisplayMyTurnActions()}
+          {this.shouldDisplayMyTurnConfirmation()}
         </div>
       </div>
     );
@@ -210,7 +385,7 @@ const mapStateToProps = (state) => {
 
   return {
     gameCode: "F6A8",
-    playerName: hardcodedPlayersList[randomInteger],
+    playerName: hardcodedPlayersList[1],
   };
 };
 
