@@ -21,17 +21,15 @@ class GameBoard extends PureComponent {
       turnNumber: 0,
       isItMyTurn: false,
       pendingPlayerAction: "",
+      pendingActionObject: null,
     };
   }
 
   async componentDidMount() {
     await this.startListening();
 
+    // set playerList, shuffle and deal
     await this.startGameActions();
-
-    // set player
-
-    // shuffle deck
   }
 
   startListening = async () => {
@@ -52,17 +50,17 @@ class GameBoard extends PureComponent {
     const { fullDocument } = changeEvent;
     const { turnNumber, playersList } = fullDocument;
     if (this.state.turnNumber + 1 === turnNumber) {
-      console.log("new turn");
+      // console.log("new turn");
       if (playersList[0].playerName === this.props.playerName) {
-        console.log("Its my turn now!!!!");
+        // console.log("Its my turn now!!!!");
         this.setState({ isItMyTurn: true, turnNumber });
       } else {
-        console.log("its not my turn..... :(");
+        // console.log("its not my turn..... :(");
         this.setState({ isItMyTurn: false, turnNumber });
         this.checkForPendingPlayerAction(changeEvent);
       }
     } else {
-      console.log("NOOOO new turn");
+      // console.log("NOOOO new turn");
       this.checkForPendingPlayerAction(changeEvent);
     }
   };
@@ -71,11 +69,11 @@ class GameBoard extends PureComponent {
     const pendingPlayerAction =
       changeEvent?.updateDescription?.updatedFields?.pendingPlayerAction;
     this.setState({ pendingPlayerAction });
-    if (pendingPlayerAction) {
-      console.log("****** playerActionupdated");
-    } else {
-      console.log("****** player action not updated");
-    }
+    // if (pendingPlayerAction) {
+    //   console.log("****** playerActionupdated");
+    // } else {
+    //   console.log("****** player action not updated");
+    // }
   };
 
   shuffleArray = (startingDeck) => {
@@ -183,14 +181,22 @@ class GameBoard extends PureComponent {
 
   giveClue = () => {
     const { gameCode } = this.props;
+    const pendingActionObject = {
+      $inc: {
+        turnNumber: 1,
+        cluesRemaining: -1,
+      },
+    };
+
+    this.setState({
+      pendingActionObject,
+    });
+
     this.gamesCollection.updateOne(
       { gameCode },
       {
         $set: {
           pendingPlayerAction: "giving",
-        },
-        $inc: {
-          cluesRemaining: -1,
         },
       }
     );
@@ -222,37 +228,37 @@ class GameBoard extends PureComponent {
 
   endTurn = () => {
     console.log("END TURN!!!!!");
-    const { isItMyTurn, playersList } = this.state;
+    const { isItMyTurn, playersList, pendingActionObject } = this.state;
     if (isItMyTurn) {
       const newPlayersList = [...playersList];
       newPlayersList.push(newPlayersList.shift());
-      console.log("neww!", newPlayersList);
       const { gameCode } = this.props;
-      this.gamesCollection.updateOne(
-        { gameCode },
-        {
-          $set: {
-            playersList: newPlayersList,
-            pendingPlayerAction: "",
-          },
-          $inc: {
-            turnNumber: 1,
-          },
-        }
-      );
+
+      this.setState({
+        playersList: newPlayersList,
+      });
+
+      const updateObject = {
+        $set: {
+          playersList: newPlayersList,
+          pendingPlayerAction: "",
+        },
+        ...pendingActionObject,
+      };
+
+      this.gamesCollection.updateOne({ gameCode }, updateObject);
     }
   };
 
   shouldDisplayPendingPlayerAction = () => {
-    const { pendingPlayerAction } = this.state;
+    const { pendingPlayerAction, playersList } = this.state;
     if (pendingPlayerAction) {
       const objectNoun = pendingPlayerAction === "giving" ? "clue" : "card";
       return (
-        <h4>{`${this.props.playerName} is ${pendingPlayerAction} a ${objectNoun}.`}</h4>
+        <h4>{`${playersList[0].playerName} is ${pendingPlayerAction} a ${objectNoun}.`}</h4>
       );
     }
-    // Not right
-    return <h4>{`${this.props.playerName}'s turn!`}</h4>;
+    return <h4>{`${playersList[0].playerName}'s turn!`}</h4>;
   };
 
   shouldDisplayMyTurnActions = () => {
@@ -310,7 +316,7 @@ class GameBoard extends PureComponent {
 
   render() {
     // console.log("render", this.state);
-    const { localizedPlayersList, pendingPlayerAction } = this.state;
+    const { localizedPlayersList } = this.state;
 
     if (localizedPlayersList.length === 0) {
       return null;
