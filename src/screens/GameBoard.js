@@ -22,6 +22,8 @@ class GameBoard extends PureComponent {
       isItMyTurn: false,
       pendingPlayerAction: "",
       pendingActionObject: null,
+      cluesRemaining: 8,
+      mistakesMade: 0,
     };
   }
 
@@ -48,15 +50,30 @@ class GameBoard extends PureComponent {
 
   checkForNewTurn = (changeEvent) => {
     const { fullDocument } = changeEvent;
-    const { turnNumber, playersList } = fullDocument;
+    const {
+      turnNumber,
+      playersList,
+      cluesRemaining,
+      mistakesMade,
+    } = fullDocument;
     if (this.state.turnNumber + 1 === turnNumber) {
       // console.log("new turn");
       if (playersList[0].playerName === this.props.playerName) {
         // console.log("Its my turn now!!!!");
-        this.setState({ isItMyTurn: true, turnNumber });
+        this.setState({
+          isItMyTurn: true,
+          turnNumber,
+          cluesRemaining,
+          mistakesMade,
+        });
       } else {
         // console.log("its not my turn..... :(");
-        this.setState({ isItMyTurn: false, turnNumber });
+        this.setState({
+          isItMyTurn: false,
+          turnNumber,
+          cluesRemaining,
+          mistakesMade,
+        });
         this.checkForPendingPlayerAction(changeEvent);
       }
     } else {
@@ -250,7 +267,7 @@ class GameBoard extends PureComponent {
     }
   };
 
-  shouldDisplayPendingPlayerAction = () => {
+  displayPendingPlayerAction = () => {
     const { pendingPlayerAction, playersList } = this.state;
     if (pendingPlayerAction) {
       const objectNoun = pendingPlayerAction === "giving" ? "clue" : "card";
@@ -316,7 +333,12 @@ class GameBoard extends PureComponent {
 
   render() {
     // console.log("render", this.state);
-    const { localizedPlayersList } = this.state;
+    const {
+      localizedPlayersList,
+      turnNumber,
+      cluesRemaining,
+      mistakesMade,
+    } = this.state;
 
     if (localizedPlayersList.length === 0) {
       return null;
@@ -324,9 +346,24 @@ class GameBoard extends PureComponent {
 
     return (
       <div>
-        <div>
-          <h3>Game Board</h3>
-          {this.shouldDisplayPendingPlayerAction()}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "space-around",
+          }}
+        >
+          <div>
+            <p>{`Turn Number: ${turnNumber}`}</p>
+          </div>
+          <div>
+            <h2>Game Board</h2>
+            {this.displayPendingPlayerAction()}
+          </div>
+          <div>
+            <p>{`Clues Remaining: ${cluesRemaining}`}</p>
+            <p>{`Mistakes Made: ${mistakesMade}`}</p>
+          </div>
         </div>
         <div
           style={{
