@@ -2,6 +2,7 @@ import React, { PureComponent } from "react";
 import { withRouter } from "react-router-dom";
 import { connect } from "react-redux";
 import { compose } from "@reduxjs/toolkit";
+import Card from "../components/Card";
 import { getGameStateSelectors } from "../store/gameReducer";
 import { returnMongoCollection, findMongo } from "../utils/databaseManagement";
 
@@ -411,11 +412,20 @@ class GameBoard extends PureComponent {
                   <p>
                     <b>{player.playerName}</b>
                   </p>
-                  {player.hand.map((card) => (
-                    <p key={`${card.cardName}-${card.keyCopy}`}>
-                      {card.cardName}
-                    </p>
-                  ))}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                    }}
+                  >
+                    {player.hand.map((card) => (
+                      <Card
+                        key={`${card.cardName}-${card.keyCopy}`}
+                        card={card}
+                      />
+                    ))}
+                  </div>
                 </div>
               );
             })}
@@ -436,9 +446,17 @@ class GameBoard extends PureComponent {
             <p>
               <b>My cards</b>
             </p>
-            {myPlayer.hand.map((card) => (
-              <p key={`${card.cardName}-${card.keyCopy}`}>{card.cardName}</p>
-            ))}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+              }}
+            >
+              {myPlayer.hand.map((card) => (
+                <Card key={`${card.cardName}-${card.keyCopy}`} card={card} />
+              ))}
+            </div>
           </div>
           {this.shouldDisplayMyTurnActions()}
           {this.shouldDisplayMyTurnConfirmation()}
