@@ -13,17 +13,18 @@ class GameBoard extends PureComponent {
     this.gamesCollection = returnMongoCollection("games");
     this.decksCollection = returnMongoCollection("decks");
 
+    // Initial state
     this.state = {
-      playerOrderIndex: null,
-      playersList: [],
-      localizedPlayersList: [],
-      myPlayer: {},
       turnNumber: 0,
-      isItMyTurn: false,
-      pendingPlayerAction: "",
-      pendingActionObject: null,
       cluesRemaining: 8,
       mistakesMade: 0,
+      playersList: [],
+      playerOrderIndex: null,
+      localizedPlayersList: [],
+      myPlayer: {},
+      isItMyTurn: false,
+      pendingActionObject: null,
+      pendingPlayerAction: "",
     };
   }
 
@@ -36,9 +37,12 @@ class GameBoard extends PureComponent {
 
   startListening = async () => {
     const { gameCode } = this.props;
+
+    // Set up listener for change events on database
     const watchedCollection = await this.gamesCollection.watch();
     watchedCollection.onNext(async (changeEvent) => {
       console.log("NEW UPDATE", changeEvent);
+      // Run update functions if "update" event and same game code
       if (
         changeEvent?.operationType === "update" &&
         changeEvent?.fullDocument?.gameCode === gameCode
@@ -56,6 +60,8 @@ class GameBoard extends PureComponent {
       cluesRemaining,
       mistakesMade,
     } = fullDocument;
+
+    // If turn number is one ahead of current state
     if (this.state.turnNumber + 1 === turnNumber) {
       // console.log("new turn");
       if (playersList[0].playerName === this.props.playerName) {
@@ -84,7 +90,7 @@ class GameBoard extends PureComponent {
 
   checkForPendingPlayerAction = (changeEvent) => {
     const pendingPlayerAction =
-      changeEvent?.updateDescription?.updatedFields?.pendingPlayerAction;
+      changeEvent?.updateDescription?.updatedFields?.pendingPlayerAction ?? "";
     this.setState({ pendingPlayerAction });
     // if (pendingPlayerAction) {
     //   console.log("****** playerActionupdated");
@@ -198,6 +204,14 @@ class GameBoard extends PureComponent {
 
   giveClue = () => {
     const { gameCode } = this.props;
+    const pendingPlayerAction = "giving";
+
+    // If pendingPlayerAction is same, reset to "" instead
+    const newPlayerAction =
+      this.state.pendingPlayerAction === pendingPlayerAction
+        ? ""
+        : pendingPlayerAction;
+
     const pendingActionObject = {
       $inc: {
         turnNumber: 1,
@@ -205,18 +219,18 @@ class GameBoard extends PureComponent {
       },
     };
 
-    this.setState({
-      pendingActionObject,
-    });
-
     this.gamesCollection.updateOne(
       { gameCode },
       {
         $set: {
-          pendingPlayerAction: "giving",
+          pendingPlayerAction: newPlayerAction,
         },
       }
     );
+
+    this.setState({
+      pendingActionObject,
+    });
   };
 
   playCard = () => {
@@ -246,6 +260,8 @@ class GameBoard extends PureComponent {
   endTurn = () => {
     console.log("END TURN!!!!!");
     const { isItMyTurn, playersList, pendingActionObject } = this.state;
+
+    // Should theoretically only happen on your turn, but sanity check
     if (isItMyTurn) {
       const newPlayersList = [...playersList];
       newPlayersList.push(newPlayersList.shift());
@@ -338,6 +354,7 @@ class GameBoard extends PureComponent {
       turnNumber,
       cluesRemaining,
       mistakesMade,
+      myPlayer,
     } = this.state;
 
     if (localizedPlayersList.length === 0) {
@@ -354,15 +371,24 @@ class GameBoard extends PureComponent {
           }}
         >
           <div>
-            <p>{`Turn Number: ${turnNumber}`}</p>
+            <p>
+              <b>Turn Number: </b>
+              {turnNumber}
+            </p>
           </div>
           <div>
             <h2>Game Board</h2>
             {this.displayPendingPlayerAction()}
           </div>
           <div>
-            <p>{`Clues Remaining: ${cluesRemaining}`}</p>
-            <p>{`Mistakes Made: ${mistakesMade}`}</p>
+            <p>
+              <b>Clues Remaining: </b>
+              {cluesRemaining}
+            </p>
+            <p>
+              <b>Mistakes Made: </b>
+              {mistakesMade}
+            </p>
           </div>
         </div>
         <div
@@ -382,7 +408,9 @@ class GameBoard extends PureComponent {
             {localizedPlayersList.map((player, index) => {
               return (
                 <div key={`Player${index}-${player.playerName}`}>
-                  <p>{player.playerName}</p>
+                  <p>
+                    <b>{player.playerName}</b>
+                  </p>
                   {player.hand.map((card) => (
                     <p key={`${card.cardName}-${card.keyCopy}`}>
                       {card.cardName}
@@ -394,15 +422,21 @@ class GameBoard extends PureComponent {
           </div>
           <div>
             <div>
-              <p>Played Cards</p>
+              <p>
+                <b>Played Cards</b>
+              </p>
             </div>
             <div>
-              <p>Discarded Cards</p>
+              <p>
+                <b>Discarded Cards</b>
+              </p>
             </div>
           </div>
           <div>
-            <p>My cards</p>
-            {this.state.myPlayer.hand.map((card) => (
+            <p>
+              <b>My cards</b>
+            </p>
+            {myPlayer.hand.map((card) => (
               <p key={`${card.cardName}-${card.keyCopy}`}>{card.cardName}</p>
             ))}
           </div>
