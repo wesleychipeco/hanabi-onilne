@@ -1,14 +1,22 @@
 import React, { PureComponent } from "react";
+import PropTypes from "prop-types";
 import { withRouter } from "react-router-dom";
 import { connect } from "react-redux";
 import { compose } from "@reduxjs/toolkit";
 import Card from "../components/Card";
 import { getGameStateSelectors } from "../store/gameReducer";
+import { selectCard } from "../store/cardsActionCreator";
 import { returnMongoCollection, findMongo } from "../utils/databaseManagement";
 
 const CARDS_PER_PLAYER = [null, null, 5, 5, 4, 4];
 
 class GameBoard extends PureComponent {
+  static propTypes = {
+    gameCode: PropTypes.string.isRequired,
+    playerName: PropTypes.string.isRequired,
+    selectCard: PropTypes.func.isRequired,
+  };
+
   constructor(props) {
     super(props);
     this.gamesCollection = returnMongoCollection("games");
@@ -264,14 +272,15 @@ class GameBoard extends PureComponent {
 
     // Should theoretically only happen on your turn, but sanity check
     if (isItMyTurn) {
+      // Move to end of array after turn is over
       const newPlayersList = [...playersList];
       newPlayersList.push(newPlayersList.shift());
       const { gameCode } = this.props;
-
       this.setState({
         playersList: newPlayersList,
       });
 
+      // Update the player list and submitted move to mongodb
       const updateObject = {
         $set: {
           playersList: newPlayersList,
@@ -279,8 +288,10 @@ class GameBoard extends PureComponent {
         },
         ...pendingActionObject,
       };
-
       this.gamesCollection.updateOne({ gameCode }, updateObject);
+
+      // Reset selected card in redux
+      this.props.selectCard("");
     }
   };
 
@@ -454,7 +465,11 @@ class GameBoard extends PureComponent {
               }}
             >
               {myPlayer.hand.map((card) => (
-                <Card key={`${card.cardName}-${card.keyCopy}`} card={card} />
+                <Card
+                  key={`${card.cardName}-${card.keyCopy}`}
+                  card={card}
+                  selectable
+                />
               ))}
             </div>
           </div>
@@ -478,6 +493,10 @@ const mapStateToProps = (state) => {
   };
 };
 
-const reduxConnectFn = connect(mapStateToProps);
+const mapDispatchToProps = {
+  selectCard,
+};
+
+const reduxConnectFn = connect(mapStateToProps, mapDispatchToProps);
 
 export default compose(reduxConnectFn, withRouter)(GameBoard);
